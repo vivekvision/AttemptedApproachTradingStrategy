@@ -23,7 +23,7 @@ def main(plot):
     instrument = "n225"
     # Load the bar feed from the CSV file
     feed = yahoofeed.Feed()
-    feed.addBarsFromCSV(instrument, r"C:\Users\Admin\Downloads\N225.csv")
+    feed.addBarsFromCSV(instrument, r".\N225.csv")
 
     hurstPeriod = 100
     strat = StrategyModule.HurstBasedStrategy(feed, "n225", hurstPeriod)
