@@ -17,7 +17,7 @@ from scipy.ndimage.interpolation import shift
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
-import StrategyModule
+import StrategyUtil
 
 def main(plot):
     instrument = "n225"
@@ -26,7 +26,7 @@ def main(plot):
     feed.addBarsFromCSV(instrument, r".\N225.csv")
 
     hurstPeriod = 100
-    strat = StrategyModule.HurstBasedStrategy(feed, "n225", hurstPeriod)
+    strat = StrategyUtil.HurstBasedStrategy(feed, "n225", hurstPeriod)
 
     sharpeRatioAnalyzer = sharpe.SharpeRatio()
     strat.attachAnalyzer(sharpeRatioAnalyzer)

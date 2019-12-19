@@ -88,13 +88,15 @@ class HurstBasedStrategy(strategy.BacktestingStrategy):
             ma = self.__halfLifeHelper.getSma()
             bar = bars[self.__instrument]
             open = bar.getOpen()
+            close = bar.getAdjClose()
+            normalizedStd = (close - ma)/stdDev  #  normalized standard deviation = (price - moving average) / moving standard deviation
             currentPos = abs(self.getBroker().getShares(self.__instrument))
             if hurst is not None:
                 if hurst < 0.5:
-                    if hurst < 0.5 and open < ma - stdDev:
-                        self.buy(bars)
-                    elif hurst < 0.5 and open >  ma - stdDev and currentPos > 0:
-                        self.sell(bars)
+                    if hurst < 0.5 and normalizedStd < 0:
+                        self.buy(bars)   # buy/sell  negative proportional of normalized standard deviation
+                    elif hurst < 0.5 and normalizedStd> 0:
+                        self.sell(bars)  # buy/sell  negative proportional of normalized standard deviation
                 if hurst > 0.5:
                     if cross.cross_below(self.__shortWindowMa, self.__longWindowMa, 10) > 0 and currentPos > 0:
                         self.sell(bars)

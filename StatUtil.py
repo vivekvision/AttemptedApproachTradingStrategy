@@ -7,9 +7,9 @@ import statsmodels.api as sm
 from statsmodels.stats.weightstats import DescrStatsW
 
 
-def getStd(returns):
-    weights = np.ones_like(returns)
-    stats = DescrStatsW(returns, weights=weights, ddof=0)
+def getStd(array):
+    weights = np.ones_like(array)
+    stats = DescrStatsW(array, weights=weights, ddof=0)
     return stats.std
 
 
