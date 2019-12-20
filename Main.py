@@ -24,9 +24,9 @@ def main(plot):
     # Load the bar feed from the CSV file
     feed = yahoofeed.Feed()
     feed.addBarsFromCSV(instrument, r".\N225.csv")
-
+    calibratedDeviation = 0.6
     hurstPeriod = 100
-    strat = StrategyUtil.HurstBasedStrategy(feed, "n225", hurstPeriod)
+    strat = StrategyUtil.ComprehensiveStrategy(feed, instrument, hurstPeriod,calibratedDeviation)
 
     sharpeRatioAnalyzer = sharpe.SharpeRatio()
     strat.attachAnalyzer(sharpeRatioAnalyzer)

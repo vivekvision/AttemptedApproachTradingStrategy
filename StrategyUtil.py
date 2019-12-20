@@ -21,24 +21,26 @@ from pandas.plotting import register_matplotlib_converters
 
 register_matplotlib_converters()
 
-import MovingHalfLifeUtil
+import MovingStatUtil
 import HalfLifeUtil
 import StatUtil
 
 
-class HurstBasedStrategy(strategy.BacktestingStrategy):
-    def __init__(self, feed, instrument, hurstPeriod):
+class ComprehensiveStrategy(strategy.BacktestingStrategy):
+    def __init__(self, feed, instrument, hurstPeriod, calibratedDeviation ):
         strategy.BacktestingStrategy.__init__(self, feed)
         self.__longWindow = 20
         self.__shortWindow = 40
         self.__instrument = instrument
+        self.__hurstPeriod = hurstPeriod
+        self.__calibratedDeviation = calibratedDeviation
         self.__position = None
-        # We'll use adjusted close values instead of regular close values.
+        # Use adjusted close values instead of regular close values.
         self.setUseAdjustedValues(True)
         self.__adjClosePrices = feed[instrument].getAdjCloseDataSeries()
         self.__prices = feed[instrument].getPriceDataSeries()
         self.__hurst = hurst.HurstExponent(self.__adjClosePrices, hurstPeriod)
-        self.__halfLifeHelper = MovingHalfLifeUtil.MovingHalfLifeHelper(feed[instrument].getAdjCloseDataSeries(), hurstPeriod)
+        self.__halfLifeHelper = MovingStatUtil.MovingHalfLifeHelper(feed[instrument].getAdjCloseDataSeries(), hurstPeriod)
 
         self.__longWindowMa = ma.SMA(self.__prices, self.__longWindow)
         self.__shortWindowMa = ma.SMA(self.__prices, self.__shortWindow)
@@ -89,14 +91,13 @@ class HurstBasedStrategy(strategy.BacktestingStrategy):
             bar = bars[self.__instrument]
             open = bar.getOpen()
             close = bar.getAdjClose()
-            normalizedStd = (close - ma)/stdDev  #  normalized standard deviation = (price - moving average) / moving standard deviation
             currentPos = abs(self.getBroker().getShares(self.__instrument))
             if hurst is not None:
                 if hurst < 0.5:
-                    if hurst < 0.5 and normalizedStd < 0:
-                        self.buy(bars)   # buy/sell  negative proportional of normalized standard deviation
-                    elif hurst < 0.5 and normalizedStd> 0:
-                        self.sell(bars)  # buy/sell  negative proportional of normalized standard deviation
+                    if hurst < 0.5 and close < ma - self.__calibratedDeviation * stdDev:
+                        self.buy(bars)
+                    elif hurst < 0.5 and close >  ma - self.__calibratedDeviation * stdDev and currentPos > 0:
+                        self.sell(bars)
                 if hurst > 0.5:
                     if cross.cross_below(self.__shortWindowMa, self.__longWindowMa, 10) > 0 and currentPos > 0:
                         self.sell(bars)
