@@ -23,16 +23,16 @@ def main(plot):
     # Load the bar feed from the CSV file
     feed = yahoofeed.Feed()
 
-    instrument = "n225"
-    feed.addBarsFromCSV(instrument, r".\n225.csv")
+    #instrument = "n225"
+    #feed.addBarsFromCSV(instrument, r".\n225.csv")
 
-    #instrument = "hsi"
-    #feed.addBarsFromCSV(instrument, r".\hsi.csv")
+    instrument = "hsi"
+    feed.addBarsFromCSV(instrument, r".\hsi.csv")
 
-    calibratedStdMultiplier = 1.2
-    calibratedShortMomentumPeriod = 10
-    calibratedLongMomentumPeriod = 20
-    hurstPeriod = 40
+    calibratedStdMultiplier = 0.2
+    calibratedShortMomentumPeriod = 12
+    calibratedLongMomentumPeriod = 26
+    hurstPeriod = 120
     strat = StrategyUtil.ComprehensiveStrategy(feed, instrument, hurstPeriod, calibratedStdMultiplier, calibratedShortMomentumPeriod,calibratedLongMomentumPeriod)
     sharpeRatioAnalyzer = sharpe.SharpeRatio()
     strat.attachAnalyzer(sharpeRatioAnalyzer)
@@ -45,7 +45,7 @@ def main(plot):
         plt = plotter.StrategyPlotter(strat, True, False, True)
 
         plt.getOrCreateSubplot("hurst").addDataSeries("Hurst", strat.getHurst())
-        plt.getOrCreateSubplot("hurst").addLine("random", 0.5)
+        plt.getOrCreateSubplot("hurst").addLine("Random", 0.5)
 
         # Plot the simple returns on each bar.
         plt.getOrCreateSubplot("returns").addDataSeries("Simple returns", returnsAnalyzer.getReturns())
