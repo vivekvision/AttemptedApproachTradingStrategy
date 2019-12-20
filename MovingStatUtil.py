@@ -17,36 +17,36 @@ import numpy as np
 import StatUtil
 import HalfLifeUtil
 
-class MovingHalfLifeHelper:
+class MovingStatHelper:
     def __init__(self, ds, hurstPeriod):
         self.__ds = ds
         self.__hurstPeriod = hurstPeriod
-        self.__halfLife = None
-        self.__stdDev = None
-        self.__ma = None
-        self.__stdDevPeriod = 50
-        self.__smaPeriod = 20
+        self.__meanReversionHalfLifePeriod = None
+        self.__movingStdValue = None
+        self.__movingAvgValue = None
+        self.__movingStdPeriod = None
+        self.__movingAvgPeriod = None
 
     def update(self):
         if len(self.__ds) >= self.__hurstPeriod:
             values = np.asarray(self.__ds[-1 * self.__hurstPeriod:])
-            self.__halfLife = int(HalfLifeUtil.getHalfLife(values))
+            self.__meanReversionHalfLifePeriod = int(HalfLifeUtil.getHalfLife(values))
 
-            if self.__halfLife != None:
-                self.__stdDevPeriod = self.__halfLife
-                self.__smaPeriod = self.__halfLife
+            if self.__meanReversionHalfLifePeriod is not None:
+                self.__movingStdPeriod = self.__meanReversionHalfLifePeriod
+                self.__movingAvgPeriod = self.__meanReversionHalfLifePeriod
 
-        if len(self.__ds) >= self.__stdDevPeriod:
+        if self.__movingStdPeriod is not None and self.__movingAvgPeriod is not None and len(self.__ds) >= self.__movingStdPeriod:
             # StdDev of adjusted close values.
-            self.__stdDev = StatUtil.getStd(np.asarray(self.__ds[-1 * self.__stdDevPeriod:]))
+            self.__movingStdValue = StatUtil.getStd(np.asarray(self.__ds[-1 * self.__movingStdPeriod:]))
             # MA over the adjusted close values.
-            self.__ma = StatUtil.getMean(np.asarray(self.__ds[-1 * self.__smaPeriod:]))
+            self.__movingAvgValue = StatUtil.getMean(np.asarray(self.__ds[-1 * self.__movingAvgPeriod:]))
 
     def getHalfLife(self):
-        return self.__halfLife
+        return self.__meanReversionHalfLifePeriod
 
     def getStdDev(self):
-        return self.__stdDev
+        return self.__movingStdValue
 
     def getSma(self):
-        return self.__ma
+        return self.__movingAvgValue

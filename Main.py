@@ -20,14 +20,20 @@ register_matplotlib_converters()
 import StrategyUtil
 
 def main(plot):
-    instrument = "n225"
     # Load the bar feed from the CSV file
     feed = yahoofeed.Feed()
-    feed.addBarsFromCSV(instrument, r".\N225.csv")
-    calibratedDeviation = 0.6
-    hurstPeriod = 100
-    strat = StrategyUtil.ComprehensiveStrategy(feed, instrument, hurstPeriod,calibratedDeviation)
 
+    instrument = "n225"
+    feed.addBarsFromCSV(instrument, r".\n225.csv")
+
+    #instrument = "hsi"
+    #feed.addBarsFromCSV(instrument, r".\hsi.csv")
+
+    calibratedStdMultiplier = 1.2
+    calibratedShortMomentumPeriod = 10
+    calibratedLongMomentumPeriod = 20
+    hurstPeriod = 40
+    strat = StrategyUtil.ComprehensiveStrategy(feed, instrument, hurstPeriod, calibratedStdMultiplier, calibratedShortMomentumPeriod,calibratedLongMomentumPeriod)
     sharpeRatioAnalyzer = sharpe.SharpeRatio()
     strat.attachAnalyzer(sharpeRatioAnalyzer)
 
@@ -50,7 +56,6 @@ def main(plot):
 
     if plot:
         plt.plot()
-
 
 if __name__ == "__main__":
     main(True)

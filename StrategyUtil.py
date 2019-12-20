@@ -11,6 +11,7 @@ from pyalgotrade.dataseries import aligned
 from pyalgotrade import eventprofiler
 from pyalgotrade.technical import stats
 from pyalgotrade.technical import roc
+from pyalgotrade.technical import rsi
 from pyalgotrade.technical import ma
 from pyalgotrade.technical import cross
 
@@ -27,23 +28,23 @@ import StatUtil
 
 
 class ComprehensiveStrategy(strategy.BacktestingStrategy):
-    def __init__(self, feed, instrument, hurstPeriod, calibratedDeviation ):
+    def __init__(self, feed, instrument, hurstPeriod, calibratedStdMultiplier, calibratedShortMomentumPeriod, calibratedLongMomentumPeriod):
         strategy.BacktestingStrategy.__init__(self, feed)
-        self.__longWindow = 20
-        self.__shortWindow = 40
+        self.__longerMomentumPeriod =  calibratedLongMomentumPeriod
+        self.__shortMomentumPeriod = calibratedShortMomentumPeriod
         self.__instrument = instrument
         self.__hurstPeriod = hurstPeriod
-        self.__calibratedDeviation = calibratedDeviation
+        self.__calibratedStdMultiplier = calibratedStdMultiplier
         self.__position = None
         # Use adjusted close values instead of regular close values.
         self.setUseAdjustedValues(True)
         self.__adjClosePrices = feed[instrument].getAdjCloseDataSeries()
         self.__prices = feed[instrument].getPriceDataSeries()
         self.__hurst = hurst.HurstExponent(self.__adjClosePrices, hurstPeriod)
-        self.__halfLifeHelper = MovingStatUtil.MovingHalfLifeHelper(feed[instrument].getAdjCloseDataSeries(), hurstPeriod)
+        self.__halfLifeHelper = MovingStatUtil.MovingStatHelper(feed[instrument].getAdjCloseDataSeries(), hurstPeriod)
 
-        self.__longWindowMa = ma.SMA(self.__prices, self.__longWindow)
-        self.__shortWindowMa = ma.SMA(self.__prices, self.__shortWindow)
+        self.__longerEMA = ma.EMA(self.__prices, self.__longerMomentumPeriod)
+        self.__shorterEMA = ma.EMA(self.__prices, self.__shortMomentumPeriod)
 
     def getHurst(self):
         return self.__hurst
@@ -54,31 +55,23 @@ class ComprehensiveStrategy(strategy.BacktestingStrategy):
 
     def onEnterOk(self, position):
         execInfo = position.getEntryOrder().getExecutionInfo()
-        self.info("BUY at $%.2f (%.2f)" % (execInfo.getPrice(), self.getHurstValue()))
-
-    def onEnterCanceled(self, position):
-        self.__position = None
+        self.info("BUY at $%.2f " % (execInfo.getPrice()))
 
     def onExitOk(self, position):
         execInfo = position.getExitOrder().getExecutionInfo()
-        self.info("SELL at $%.2f (%.2f)" % (execInfo.getPrice(), self.getHurstValue()))
-        self.__position = None
-
-    def onExitCanceled(self, position):
-        # If the exit was canceled, re-submit it.
-        self.__position.exitMarket()
+        self.info("SELL at $%.2f " % (execInfo.getPrice()))
 
     def sell(self, bars):
-        cash = self.getBroker().getCash(False)
-        price = bars[self.__instrument].getAdjClose()
-        size = int((cash / price))
-        if size < self.getBroker().getShares(self.__instrument):
-            self.marketOrder(self.__instrument, size * -1)
+        currentPos = abs(self.getBroker().getShares(self.__instrument))
+        if currentPos > 0:
+            self.marketOrder(self.__instrument, currentPos * -1)
+            self.info("Placing sell market order for %s shares" % currentPos)
 
     def buy(self, bars):
         cash = self.getBroker().getCash(False)
         price = bars[self.__instrument].getAdjClose()
         size = int((cash / price)*0.9)
+        self.info("Placing buy market order for %s shares" % size)
         self.marketOrder(self.__instrument, size)
 
     def onBars(self, bars):
@@ -94,13 +87,15 @@ class ComprehensiveStrategy(strategy.BacktestingStrategy):
             currentPos = abs(self.getBroker().getShares(self.__instrument))
             if hurst is not None:
                 if hurst < 0.5:
-                    if hurst < 0.5 and close < ma - self.__calibratedDeviation * stdDev:
+                    if hurst < 0.5 and close < ma - self.__calibratedStdMultiplier * stdDev:
                         self.buy(bars)
-                    elif hurst < 0.5 and close >  ma - self.__calibratedDeviation * stdDev and currentPos > 0:
-                        self.sell(bars)
-                if hurst > 0.5:
-                    if cross.cross_below(self.__shortWindowMa, self.__longWindowMa, 10) > 0 and currentPos > 0:
+
+                    elif hurst < 0.5 and close >  ma - self.__calibratedStdMultiplier * stdDev and currentPos > 0:
                         self.sell(bars)
 
-                    if cross.cross_above(self.__longWindowMa, self.__shortWindowMa, 10) > 0:
+                if hurst > 0.5:
+                    if cross.cross_below(self.__shorterEMA, self.__longerEMA) > 0 and currentPos > 0:
+                        self.sell(bars)
+
+                    if cross.cross_above( self.__shorterEMA, self.__longerEMA) > 0:
                         self.buy(bars)
