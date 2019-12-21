@@ -1,4 +1,6 @@
 
+# Utility to calculate half-life of mean reversion - Reference Chan(2013)
+
 import numpy as np
 from scipy.ndimage.interpolation import shift
 

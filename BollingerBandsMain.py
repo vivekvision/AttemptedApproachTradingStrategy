@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 from pyalgotrade import strategy
 from pyalgotrade import plotter
 from pyalgotrade.tools import quandl
@@ -11,11 +9,11 @@ from pyalgotrade.barfeed import yahoofeed
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
-class BBands(strategy.BacktestingStrategy):
-    def __init__(self, feed, instrument, bBandsPeriod):
-        super(BBands, self).__init__(feed, 1000000)
+class BollingerBandsStrategy(strategy.BacktestingStrategy):
+    def __init__(self, feed, instrument, calibratedBollingerBandsPeriod):
+        super(BollingerBandsStrategy, self).__init__(feed, 1000000)
         self.__instrument = instrument
-        self.__bbands = bollinger.BollingerBands(feed[instrument].getCloseDataSeries(), bBandsPeriod, 2)
+        self.__bbands = bollinger.BollingerBands(feed[instrument].getCloseDataSeries(), calibratedBollingerBandsPeriod, 2)
 
     def getBollingerBands(self):
         return self.__bbands
@@ -48,12 +46,12 @@ class BBands(strategy.BacktestingStrategy):
 
 def main(plot):
     instrument = "n225"
-    bBandsPeriod = 40
+    CalibratedBollingerBandsPeriod = 40
 
     feed = yahoofeed.Feed()
     feed.addBarsFromCSV(instrument, r".\n225.csv")
 
-    strat = BBands(feed, instrument, bBandsPeriod)
+    strat = BollingerBandsStrategy(feed, instrument, CalibratedBollingerBandsPeriod)
     sharpeRatioAnalyzer = sharpe.SharpeRatio()
     strat.attachAnalyzer(sharpeRatioAnalyzer)
 

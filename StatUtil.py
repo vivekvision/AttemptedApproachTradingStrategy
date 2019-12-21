@@ -1,7 +1,8 @@
 
+# Utility to calculate standard deviation and average of input data
+
 import numpy as np
 from scipy.ndimage.interpolation import shift
-
 import statsmodels.tsa.stattools as ts
 import statsmodels.api as sm
 from statsmodels.stats.weightstats import DescrStatsW

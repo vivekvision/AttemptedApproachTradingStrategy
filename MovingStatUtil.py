@@ -1,3 +1,6 @@
+
+# Utility to calculate moving half-life (half-life of mean reversion), moving standard deviation, moving average
+
 from pyalgotrade import strategy
 from pyalgotrade.technical import hurst
 from pyalgotrade.barfeed import quandlfeed
@@ -16,6 +19,7 @@ from pyalgotrade.technical import cross
 import numpy as np
 import StatUtil
 import HalfLifeUtil
+
 
 class MovingStatHelper:
     def __init__(self, ds, hurstPeriod):
