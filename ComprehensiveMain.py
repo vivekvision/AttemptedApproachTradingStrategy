@@ -23,11 +23,11 @@ def main(plot):
     # Load the bar feed from the CSV file
     feed = yahoofeed.Feed()
 
-    #instrument = "n225"
-    #feed.addBarsFromCSV(instrument, r".\n225.csv")
+    instrument = "n225"
+    feed.addBarsFromCSV(instrument, r".\n225.csv")
 
-    instrument = "hsi"
-    feed.addBarsFromCSV(instrument, r".\hsi.csv")
+    #instrument = "hsi"
+    #feed.addBarsFromCSV(instrument, r".\hsi.csv")
 
     calibratedStdMultiplier = 0.2
     calibratedShortMomentumPeriod = 12
