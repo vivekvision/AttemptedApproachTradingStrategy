@@ -49,7 +49,7 @@ def main(plot):
     CalibratedBollingerBandsPeriod = 40
 
     feed = yahoofeed.Feed()
-    feed.addBarsFromCSV(instrument, r".\n225.csv")
+    feed.addBarsFromCSV(instrument, r".\Data\n225.csv")
 
     strat = BollingerBandsStrategy(feed, instrument, CalibratedBollingerBandsPeriod)
     sharpeRatioAnalyzer = sharpe.SharpeRatio()

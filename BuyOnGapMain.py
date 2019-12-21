@@ -52,7 +52,7 @@ def main(plot):
     instrument = "n225"
     # Load the bar feed from the CSV file
     feed = yahoofeed.Feed()
-    feed.addBarsFromCSV(instrument, r".\n225.csv")
+    feed.addBarsFromCSV(instrument, r".\Data\n225.csv")
 
     predicate = BuyOnGap(feed)
     eventProfiler = eventprofiler.Profiler(predicate, 5, 5)

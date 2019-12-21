@@ -24,7 +24,7 @@ def main(plot):
     feed = yahoofeed.Feed()
 
     instrument = "n225"
-    feed.addBarsFromCSV(instrument, r".\n225.csv")
+    feed.addBarsFromCSV(instrument, r".\Data\n225.csv")
 
     #instrument = "hsi"
     #feed.addBarsFromCSV(instrument, r".\hsi.csv")

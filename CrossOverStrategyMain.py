@@ -49,7 +49,7 @@ class CrossOverStrategy(strategy.BacktestingStrategy):
 # Load the bar feed from the CSV file
 feed = yahoofeed.Feed()
 instrument = "n225"
-feed.addBarsFromCSV(instrument, r".\n225.csv")
+feed.addBarsFromCSV(instrument, r".\Data\n225.csv")
 
 calibratedSmaPeriod = 20
 
