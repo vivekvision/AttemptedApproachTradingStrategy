@@ -15,23 +15,16 @@ from pyalgotrade.technical import rsi
 from pyalgotrade.technical import ma
 from pyalgotrade.technical import cross
 
-import numpy as np
-from scipy.ndimage.interpolation import shift
-
 from pandas.plotting import register_matplotlib_converters
-
 register_matplotlib_converters()
 
 import MovingStatUtil
-import HalfLifeUtil
-import StatUtil
+
 
 
 class ComprehensiveStrategy(strategy.BacktestingStrategy):
-    def __init__(self, feed, instrument, hurstPeriod, calibratedStdMultiplier, calibratedShortMomentumPeriod, calibratedLongMomentumPeriod):
+    def __init__(self, feed, instrument, hurstPeriod, calibratedStdMultiplier, rsiPeriod, entrySMA, exitSMA, overBoughtThreshold,overSoldThreshold):
         strategy.BacktestingStrategy.__init__(self, feed)
-        self.__longerMomentumPeriod =  calibratedLongMomentumPeriod
-        self.__shortMomentumPeriod = calibratedShortMomentumPeriod
         self.__instrument = instrument
         self.__hurstPeriod = hurstPeriod
         self.__calibratedStdMultiplier = calibratedStdMultiplier
@@ -41,10 +34,16 @@ class ComprehensiveStrategy(strategy.BacktestingStrategy):
         self.__adjClosePrices = feed[instrument].getAdjCloseDataSeries()
         self.__prices = feed[instrument].getPriceDataSeries()
         self.__hurst = hurst.HurstExponent(self.__adjClosePrices, hurstPeriod)
-        self.__halfLifeHelper = MovingStatUtil.MovingStatHelper(feed[instrument].getAdjCloseDataSeries(), hurstPeriod)
+        self.__movingStatHelper = MovingStatUtil.MovingStatHelper(feed[instrument].getAdjCloseDataSeries(), hurstPeriod)
 
-        self.__longerEMA = ma.EMA(self.__prices, self.__longerMomentumPeriod)
-        self.__shorterEMA = ma.EMA(self.__prices, self.__shortMomentumPeriod)
+        self.__entrySMA = ma.SMA(self.__prices, entrySMA)
+        self.__exitSMA = ma.SMA(self.__prices, exitSMA)
+        self.__rsi = rsi.RSI(self.__prices, rsiPeriod)
+        self.__overBoughtThreshold = overBoughtThreshold
+        self.__overSoldThreshold = overSoldThreshold
+
+        self.__longPos = None
+        self.__shortPos = None
 
     def getHurst(self):
         return self.__hurst
@@ -61,6 +60,28 @@ class ComprehensiveStrategy(strategy.BacktestingStrategy):
         execInfo = position.getExitOrder().getExecutionInfo()
         self.info("SELL at $%.2f " % (execInfo.getPrice()))
 
+    def onEnterCanceled(self, position):
+        if self.__longPos == position:
+            self.__longPos = None
+        elif self.__shortPos == position:
+            self.__shortPos = None
+
+    def onExitOk(self, position):
+        if self.__longPos == position:
+            execInfo = position.getExitOrder().getExecutionInfo()
+            self.info("SELL-L at $%.2f" % (execInfo.getPrice()))
+            self.__longPos = None
+        elif self.__shortPos == position:
+            execInfo = position.getExitOrder().getExecutionInfo()
+            self.info("SELL-S at $%.2f" % (execInfo.getPrice()))
+            self.__shortPos = None
+        else:
+            assert(False)
+
+    def onExitCanceled(self, position):
+        # If the exit was canceled, re-submit it.
+        position.exitMarket()
+
     def sell(self, bars):
         currentPos = abs(self.getBroker().getShares(self.__instrument))
         if currentPos > 0:
@@ -68,34 +89,56 @@ class ComprehensiveStrategy(strategy.BacktestingStrategy):
             self.info("Placing sell market order for %s shares" % currentPos)
 
     def buy(self, bars):
-        cash = self.getBroker().getCash(False)
+        cash = self.getBroker().getCash()
         price = bars[self.__instrument].getAdjClose()
         size = int((cash / price)*0.9)
         self.info("Placing buy market order for %s shares" % size)
         self.marketOrder(self.__instrument, size)
 
+    def enterLongSignal(self, bar):
+        return bar.getPrice() > self.__entrySMA[-1] and self.__rsi[-1] <= self.__overSoldThreshold
+
+    def exitLongSignal(self):
+        return cross.cross_above(self.__prices, self.__exitSMA) and not self.__longPos.exitActive()
+
+    def enterShortSignal(self, bar):
+        return bar.getPrice() < self.__entrySMA[-1] and self.__rsi[-1] >= self.__overBoughtThreshold
+
+    def exitShortSignal(self):
+        return cross.cross_below(self.__prices, self.__exitSMA) and not self.__shortPos.exitActive()
+
+
     def onBars(self, bars):
-        self.__halfLifeHelper.update()
+        self.__movingStatHelper.update()
         if bars.getBar(self.__instrument):
             hurst = self.getHurstValue()
-            halfLife = self.__halfLifeHelper.getHalfLife()
-            stdDev = self.__halfLifeHelper.getStdDev()
-            ma = self.__halfLifeHelper.getSma()
+            movingStdDev = self.__movingStatHelper.getMovingStdDev()
+            ma = self.__movingStatHelper.getSma()
             bar = bars[self.__instrument]
             open = bar.getOpen()
             close = bar.getAdjClose()
             currentPos = abs(self.getBroker().getShares(self.__instrument))
             if hurst is not None:
                 if hurst < 0.5:
-                    if hurst < 0.5 and close < ma - self.__calibratedStdMultiplier * stdDev:
+                    if hurst < 0.5 and close < ma - self.__calibratedStdMultiplier * movingStdDev:
                         self.buy(bars)
 
-                    elif hurst < 0.5 and close >  ma - self.__calibratedStdMultiplier * stdDev and currentPos > 0:
+                    elif hurst < 0.5 and close >  ma - self.__calibratedStdMultiplier * movingStdDev and currentPos > 0:
                         self.sell(bars)
 
-                if hurst > 0.5:
-                    if cross.cross_below(self.__shorterEMA, self.__longerEMA) > 0 and currentPos > 0:
-                        self.sell(bars)
-
-                    if cross.cross_above( self.__shorterEMA, self.__longerEMA) > 0:
-                        self.buy(bars)
+                if hurst > 0.5 and self.__exitSMA[-1] is not None and self.__entrySMA[-1] is not None and self.__rsi[-1] is not None:
+                    if self.__longPos is not None:
+                        if self.exitLongSignal():
+                            self.__longPos.exitMarket()
+                    elif self.__shortPos is not None:
+                        if self.exitShortSignal():
+                            self.__shortPos.exitMarket()
+                    else:
+                        if self.enterLongSignal(bar):
+                            shares = int(self.getBroker().getCash() * 0.9 / bars[self.__instrument].getPrice())
+                            if shares > 0:
+                                self.__longPos = self.enterLong(self.__instrument, shares, True)
+                        elif self.enterShortSignal(bar):
+                            shares = int(self.getBroker().getCash() * 0.9 / bars[self.__instrument].getPrice())
+                            if shares > 0:
+                                self.__shortPos = self.enterShort(self.__instrument, shares, True)

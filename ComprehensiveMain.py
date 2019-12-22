@@ -20,20 +20,26 @@ register_matplotlib_converters()
 import StrategyUtil
 
 def main(plot):
+
     # Load the bar feed from the CSV file
     feed = yahoofeed.Feed()
 
-    instrument = "n225"
-    feed.addBarsFromCSV(instrument, r".\Data\n225.csv")
+    #instrument = "n225"
+    #feed.addBarsFromCSV(instrument, r".\Data\n225.csv")
 
-    #instrument = "hsi"
-    #feed.addBarsFromCSV(instrument, r".\hsi.csv")
+    instrument = "hsi"
+    feed.addBarsFromCSV(instrument, r".\Data\hsi.csv")
 
     calibratedStdMultiplier = 0.2
-    calibratedShortMomentumPeriod = 12
-    calibratedLongMomentumPeriod = 26
     hurstPeriod = 120
-    strat = StrategyUtil.ComprehensiveStrategy(feed, instrument, hurstPeriod, calibratedStdMultiplier, calibratedShortMomentumPeriod,calibratedLongMomentumPeriod)
+
+    rsiPeriod = 2
+    entrySMA = 100
+    exitSMA = 5
+    overBoughtThreshold = 80
+    overSoldThreshold = 20
+
+    strat = StrategyUtil.ComprehensiveStrategy(feed, instrument, hurstPeriod, calibratedStdMultiplier, rsiPeriod, entrySMA, exitSMA, overBoughtThreshold, overSoldThreshold)
     sharpeRatioAnalyzer = sharpe.SharpeRatio()
     strat.attachAnalyzer(sharpeRatioAnalyzer)
 

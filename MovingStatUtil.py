@@ -46,10 +46,8 @@ class MovingStatHelper:
             # MA over the adjusted close values.
             self.__movingAvgValue = StatUtil.getMean(np.asarray(self.__ds[-1 * self.__movingAvgPeriod:]))
 
-    def getHalfLife(self):
-        return self.__meanReversionHalfLifePeriod
 
-    def getStdDev(self):
+    def getMovingStdDev(self):
         return self.__movingStdValue
 
     def getSma(self):
