@@ -23,7 +23,7 @@ import MovingStatUtil
 
 
 class ComprehensiveStrategy(strategy.BacktestingStrategy):
-    def __init__(self, feed, instrument, hurstPeriod, stdMultiplier, rsiPeriod, entrySMA, exitSMA, overBoughtThreshold, overSoldThreshold):
+    def __init__(self, feed, instrument, hurstPeriod, stdMultiplier, rsiPeriod, entrySMAPeriod, exitSMAPeriod, overBoughtThreshold, overSoldThreshold):
         strategy.BacktestingStrategy.__init__(self, feed)
         self.__instrument = instrument
         self.__hurstPeriod = hurstPeriod
@@ -36,8 +36,8 @@ class ComprehensiveStrategy(strategy.BacktestingStrategy):
         self.__hurst = hurst.HurstExponent(self.__adjClosePrices, hurstPeriod)
         self.__movingStatHelper = MovingStatUtil.MovingStatHelper(feed[instrument].getAdjCloseDataSeries(), hurstPeriod)
 
-        self.__entrySMA = ma.SMA(self.__prices, entrySMA)
-        self.__exitSMA = ma.SMA(self.__prices, exitSMA)
+        self.__entrySMAPeriod = ma.SMA(self.__prices, entrySMAPeriod)
+        self.__exitSMAPeriod = ma.SMA(self.__prices, exitSMAPeriod)
         self.__rsi = rsi.RSI(self.__prices, rsiPeriod)
         self.__overBoughtThreshold = overBoughtThreshold
         self.__overSoldThreshold = overSoldThreshold
@@ -96,16 +96,16 @@ class ComprehensiveStrategy(strategy.BacktestingStrategy):
         self.marketOrder(self.__instrument, size)
 
     def enterLongSignal(self, bar):
-        return bar.getPrice() > self.__entrySMA[-1] and self.__rsi[-1] <= self.__overSoldThreshold
+        return bar.getPrice() > self.__entrySMAPeriod[-1] and self.__rsi[-1] <= self.__overSoldThreshold
 
     def exitLongSignal(self):
-        return cross.cross_above(self.__prices, self.__exitSMA) and not self.__longPos.exitActive()
+        return cross.cross_above(self.__prices, self.__exitSMAPeriod) and not self.__longPos.exitActive()
 
     def enterShortSignal(self, bar):
-        return bar.getPrice() < self.__entrySMA[-1] and self.__rsi[-1] >= self.__overBoughtThreshold
+        return bar.getPrice() < self.__entrySMAPeriod[-1] and self.__rsi[-1] >= self.__overBoughtThreshold
 
     def exitShortSignal(self):
-        return cross.cross_below(self.__prices, self.__exitSMA) and not self.__shortPos.exitActive()
+        return cross.cross_below(self.__prices, self.__exitSMAPeriod) and not self.__shortPos.exitActive()
 
 
     def onBars(self, bars):
@@ -126,7 +126,7 @@ class ComprehensiveStrategy(strategy.BacktestingStrategy):
                     elif hurst < 0.5 and close >  ma - self.__calibratedStdMultiplier * movingStdDev and currentPos > 0:
                         self.sell(bars)
 
-                if hurst > 0.5 and self.__exitSMA[-1] is not None and self.__entrySMA[-1] is not None and self.__rsi[-1] is not None:
+                if hurst > 0.5 and self.__exitSMAPeriod[-1] is not None and self.__entrySMAPeriod[-1] is not None and self.__rsi[-1] is not None:
                     if self.__longPos is not None:
                         if self.exitLongSignal():
                             self.__longPos.exitMarket()
