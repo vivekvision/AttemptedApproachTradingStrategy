@@ -4,6 +4,8 @@ from pyalgotrade.barfeed import quandlfeed
 from pyalgotrade import plotter
 from pyalgotrade.stratanalyzer import sharpe
 from pyalgotrade.stratanalyzer import returns
+from pyalgotrade.stratanalyzer import drawdown
+
 from pyalgotrade.barfeed import yahoofeed
 from pyalgotrade import dataseries
 from pyalgotrade.dataseries import aligned
@@ -27,8 +29,11 @@ def main(plot):
     #instrument = "n225"
     #feed.addBarsFromCSV(instrument, r".\Data\n225.csv")
 
-    instrument = "hsi"
-    feed.addBarsFromCSV(instrument, r".\Data\hsi.csv")
+    #instrument = "hsi"
+    #feed.addBarsFromCSV(instrument, r".\Data\hsi.csv")
+
+    instrument = "twii"
+    feed.addBarsFromCSV(instrument, r".\Data\twii.csv")
 
     calibratedStdMultiplier = 0.2
     hurstPeriod = 120
@@ -40,10 +45,16 @@ def main(plot):
     overSoldThreshold = 20
 
     strat = StrategyUtil.ComprehensiveStrategy(feed, instrument, hurstPeriod, calibratedStdMultiplier, rsiPeriod, entrySMA, exitSMA, overBoughtThreshold, overSoldThreshold)
+
+    # Attach a Sharpe Ratio analyser
     sharpeRatioAnalyzer = sharpe.SharpeRatio()
     strat.attachAnalyzer(sharpeRatioAnalyzer)
 
-    # Attach a returns analyzers to the strategy.
+    # Attach a Draw Down analyzer
+    drawdownAnalyzer = drawdown.DrawDown()
+    strat.attachAnalyzer(drawdownAnalyzer)
+
+    # Attach a return analyzer
     returnsAnalyzer = returns.Returns()
     strat.attachAnalyzer(returnsAnalyzer)
 

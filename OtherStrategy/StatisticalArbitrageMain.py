@@ -138,7 +138,7 @@ def main(plot):
     instruments = ["gld", "gdx"]
     windowSize = 50
 
-    # Load the bars
+    # Load  bar feed from CSV file/Yahoo format
     feed = yahoofeed.Feed()
     for year in range(2006, 2012+1):
         for instrument in instruments:

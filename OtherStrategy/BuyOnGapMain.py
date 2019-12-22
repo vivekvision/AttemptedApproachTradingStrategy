@@ -48,7 +48,6 @@ class BuyOnGap(eventprofiler.Predicate):
 
 def main(plot):
 
-
     instrument = "n225"
     # Load the bar feed from the CSV file
     feed = yahoofeed.Feed()
