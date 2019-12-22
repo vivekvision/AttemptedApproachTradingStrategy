@@ -33,9 +33,9 @@ def main(plot):
     #feed.addBarsFromCSV(instrument, r".\Data\hsi.csv")
 
     instrument = "twii"
-    feed.addBarsFromCSV(instrument, r".\Data\twii.csv")
+    feed.addBarsFromCSV(instrument, r".\Data\tsec.csv")
 
-    calibratedStdMultiplier = 0.2
+    stdMultiplier = 0.2
     hurstPeriod = 120
 
     rsiPeriod = 2
@@ -44,7 +44,7 @@ def main(plot):
     overBoughtThreshold = 80
     overSoldThreshold = 20
 
-    strat = StrategyUtil.ComprehensiveStrategy(feed, instrument, hurstPeriod, calibratedStdMultiplier, rsiPeriod, entrySMA, exitSMA, overBoughtThreshold, overSoldThreshold)
+    strat = StrategyUtil.ComprehensiveStrategy(feed, instrument, hurstPeriod, stdMultiplier, rsiPeriod, entrySMA, exitSMA, overBoughtThreshold, overSoldThreshold)
 
     # Attach a Sharpe Ratio analyser
     sharpeRatioAnalyzer = sharpe.SharpeRatio()
@@ -70,6 +70,9 @@ def main(plot):
     strat.run()
     strat.info("Final portfolio value: $%.2f" % strat.getResult())
     print("Sharpe ratio: %.2f" % sharpeRatioAnalyzer.getSharpeRatio(0.05))
+    print("Maximum Drawdown : %.2f" % drawdownAnalyzer.getMaxDrawDown())
+    print("Longest Drawdown Duration : %s" % drawdownAnalyzer.getLongestDrawDownDuration())
+    print("Cumulative returns: %.2f %%" % (returnsAnalyzer.getCumulativeReturns()[-1] * 100))
 
     if plot:
         plt.plot()

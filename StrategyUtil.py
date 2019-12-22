@@ -23,11 +23,11 @@ import MovingStatUtil
 
 
 class ComprehensiveStrategy(strategy.BacktestingStrategy):
-    def __init__(self, feed, instrument, hurstPeriod, calibratedStdMultiplier, rsiPeriod, entrySMA, exitSMA, overBoughtThreshold,overSoldThreshold):
+    def __init__(self, feed, instrument, hurstPeriod, stdMultiplier, rsiPeriod, entrySMA, exitSMA, overBoughtThreshold, overSoldThreshold):
         strategy.BacktestingStrategy.__init__(self, feed)
         self.__instrument = instrument
         self.__hurstPeriod = hurstPeriod
-        self.__calibratedStdMultiplier = calibratedStdMultiplier
+        self.__calibratedStdMultiplier = stdMultiplier
         self.__position = None
         # Use adjusted close values instead of regular close values.
         self.setUseAdjustedValues(True)
