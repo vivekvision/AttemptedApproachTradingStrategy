@@ -58,17 +58,32 @@ def main(plot):
     # Load the bar feed from the CSV file
     feed = yahoofeed.Feed()
 
-    instrument = "n225"
-    feed.addBarsFromCSV(instrument, r".\Data\n225.csv")
+    #instrument = "n225"
+    #feed.addBarsFromCSV(instrument, r".\Data\n225.csv")
 
-    # instrument = "hsi"
-    # feed.addBarsFromCSV(instrument, r".\Data\hsi.csv")
+    #instrument = "hsi"
+    #feed.addBarsFromCSV(instrument, r".\Data\hsi.csv")
+
+    #instrument = "hsce"
+    #feed.addBarsFromCSV(instrument, r".\Data\hsce.csv")
 
     #instrument = "tsec"
     #feed.addBarsFromCSV(instrument, r".\Data\tsec.csv")
 
+    #instrument = "asx"
+    #feed.addBarsFromCSV(instrument, r".\Data\asx.csv")
+
+    #instrument = "kospi"
+    #feed.addBarsFromCSV(instrument, r".\Data\kospi.csv")
+
+    #instrument = "nifty"
+    #feed.addBarsFromCSV(instrument, r".\Data\nifty.csv")
+
+    instrument = "jkse"
+    feed.addBarsFromCSV(instrument, r".\Data\jkse.csv")
+
     # parameters
-    hurstPeriod = 50
+    hurstPeriod = 100
 
     strat = HurstStrategy(feed, instrument, hurstPeriod)
 

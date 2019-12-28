@@ -29,14 +29,29 @@ def main(plot):
     # Load the bar feed from the CSV file
     feed = yahoofeed.Feed()
 
-    #instrument = "n225"
-    #feed.addBarsFromCSV(instrument, r".\Data\n225.csv")
+    # instrument = "n225"
+    # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\n225.csv")
 
-    #instrument = "hsi"
-    #feed.addBarsFromCSV(instrument, r".\Data\hsi.csv")
+    # instrument = "hsi"
+    # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\hsi.csv")
 
-    instrument = "tsec"
-    feed.addBarsFromCSV(instrument, r".\Data\tsec.csv")
+    # instrument = "hsce"
+    # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\hsce.csv")
+
+    # instrument = "tsec"
+    # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\tsec.csv")
+
+    # instrument = "asx"
+    # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\asx.csv")
+
+    # instrument = "kospi"
+    # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\kospi.csv")
+
+    # instrument = "nifty"
+    # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\nifty.csv")
+
+    instrument = "jkse"
+    feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\jkse.csv")
 
     # parameters
     stdMultiplier = 0.2
