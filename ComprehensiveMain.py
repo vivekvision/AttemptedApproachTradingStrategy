@@ -16,6 +16,7 @@ from pyalgotrade.technical import stats
 from pyalgotrade.technical import roc
 from pyalgotrade.technical import ma
 from pyalgotrade.technical import cross
+
 import numpy as np
 from scipy.ndimage.interpolation import shift
 from pandas.plotting import register_matplotlib_converters
