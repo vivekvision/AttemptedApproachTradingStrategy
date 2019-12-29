@@ -29,11 +29,11 @@ def main(plot):
     # Load the bar feed from the CSV file
     feed = yahoofeed.Feed()
 
-    # instrument = "n225"
-    # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\n225.csv")
+    #instrument = "n225"
+    #feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\n225.csv")
 
-    # instrument = "hsi"
-    # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\hsi.csv")
+    instrument = "hsi"
+    feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\hsi.csv")
 
     # instrument = "hsce"
     # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\hsce.csv")
@@ -50,19 +50,16 @@ def main(plot):
     # instrument = "nifty"
     # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\nifty.csv")
 
-    instrument = "jkse"
-    feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\jkse.csv")
+    #instrument = "jkse"
+    #feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\jkse.csv")
 
     # parameters
     stdMultiplier = 0.2
     hurstPeriod = 100
-    rsiPeriod = 2
-    entrySMAPeriod = 26
-    exitSMAPeriod = 9
-    overBoughtThreshold = 80
-    overSoldThreshold = 20
+    bollingerBandsPeriod = 30
+    bollingerBandsNoOfStd = 2
 
-    strat = StrategyUtil.ComprehensiveStrategy(feed, instrument, hurstPeriod, stdMultiplier, rsiPeriod, entrySMAPeriod, exitSMAPeriod, overBoughtThreshold, overSoldThreshold)
+    strat = StrategyUtil.ComprehensiveStrategy(feed, instrument, hurstPeriod, stdMultiplier, bollingerBandsPeriod, bollingerBandsNoOfStd)
 
     # Attach a Sharpe Ratio analyser
     sharpeRatioAnalyzer = sharpe.SharpeRatio()

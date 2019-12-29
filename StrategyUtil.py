@@ -11,9 +11,11 @@ from pyalgotrade.dataseries import aligned
 from pyalgotrade import eventprofiler
 from pyalgotrade.technical import stats
 from pyalgotrade.technical import roc
-from pyalgotrade.technical import rsi
+
 from pyalgotrade.technical import ma
 from pyalgotrade.technical import cross
+
+from pyalgotrade.technical import bollinger
 
 from pandas.plotting import register_matplotlib_converters
 
@@ -23,27 +25,25 @@ import MovingStatUtil
 
 
 class ComprehensiveStrategy(strategy.BacktestingStrategy):
-    def __init__(self, feed, instrument, hurstPeriod, stdMultiplier, rsiPeriod, entrySMAPeriod, exitSMAPeriod,
-                 overBoughtThreshold, overSoldThreshold):
+    def __init__(self, feed, instrument, hurstPeriod, stdMultiplier, bollingerBandsPeriod, bollingerBandsNoOfStd):
         strategy.BacktestingStrategy.__init__(self, feed)
         self.__instrument = instrument
         self.__hurstPeriod = hurstPeriod
         self.__calibratedStdMultiplier = stdMultiplier
         self.__position = None
-        # Use adjusted close values instead of regular close values.
-        self.setUseAdjustedValues(True)
-        self.__adjClosePrices = feed[instrument].getAdjCloseDataSeries()
-        self.__hurst = hurst.HurstExponent(self.__adjClosePrices, hurstPeriod)
-        self.__movingStatHelper = MovingStatUtil.MovingStatHelper(feed[instrument].getAdjCloseDataSeries(), hurstPeriod)
+        # Use adjusted close values, if available, instead of regular close values.
+        if feed.barsHaveAdjClose():
+            self.setUseAdjustedValues(True)
+        self.__priceDS = feed[instrument].getPriceDataSeries()
+        self.__hurst = hurst.HurstExponent(self.__priceDS, hurstPeriod)
+        self.__movingStatHelper = MovingStatUtil.MovingStatHelper(self.__priceDS, hurstPeriod)
 
-        self.__entrySMA = ma.SMA(self.__adjClosePrices, entrySMAPeriod)
-        self.__exitSMA = ma.SMA(self.__adjClosePrices, exitSMAPeriod)
-        self.__rsi = rsi.RSI(self.__adjClosePrices, rsiPeriod)
-        self.__overBoughtThreshold = overBoughtThreshold
-        self.__overSoldThreshold = overSoldThreshold
+        self.__bollingerBandsPeriod = bollingerBandsPeriod
+        self.__bollingerBandsNoOfStd = bollingerBandsNoOfStd
+        self.__bollingerBands = bollinger.BollingerBands(self.__priceDS,
+                                                         self.__bollingerBandsPeriod, self.__bollingerBandsNoOfStd)
 
-        self.__longPos = None
-        self.__shortPos = None
+        self.__position = None
 
     def getHurst(self):
         return self.__hurst
@@ -54,101 +54,82 @@ class ComprehensiveStrategy(strategy.BacktestingStrategy):
 
     def onEnterOk(self, position):
         execInfo = position.getEntryOrder().getExecutionInfo()
-        self.info("BUY at $%.2f " % (execInfo.getPrice()))
+        self.info("Buy order at $%.2f " % (execInfo.getPrice()))
 
     def onEnterCanceled(self, position):
-        if self.__longPos == position:
-            self.__longPos = None
-        elif self.__shortPos == position:
-            self.__shortPos = None
+        self.__position = None
 
     def onExitOk(self, position):
-        if self.__longPos == position:
-            execInfo = position.getExitOrder().getExecutionInfo()
-            self.info("SELL-L at $%.2f" % (execInfo.getPrice()))
-            self.__longPos = None
-        elif self.__shortPos == position:
-            execInfo = position.getExitOrder().getExecutionInfo()
-            self.info("SELL-S at $%.2f" % (execInfo.getPrice()))
-            self.__shortPos = None
+        execInfo = position.getExitOrder().getExecutionInfo()
+        self.info(" Sell order at $%.2f" % (execInfo.getPrice()))
+        self.__position = None
 
     def onExitCanceled(self, position):
+        # If the exit was canceled, re-submit it.
         position.exitMarket()
 
-    def isMomentumRegimeEnterLongSignal(self, bar):
-        return bar.getAdjClose() > self.__entrySMA[-1] and self.__rsi[-1] <= self.__overSoldThreshold
-
-    def isMomentumRegimeExitLongSignal(self):
-        return cross.cross_above(self.__adjClosePrices, self.__exitSMA) and not self.__longPos.exitActive()
-
-    def isMomentumRegimeEnterShortSignal(self, bar):
-        return bar.getAdjClose() < self.__entrySMA[-1] and self.__rsi[-1] >= self.__overBoughtThreshold
-
-    def isMomentumRegimeExitShortSignal(self):
-        return cross.cross_below(self.__adjClosePrices, self.__exitSMA) and not self.__shortPos.exitActive()
-
-    def isMeanReversionRegimeEnterLongSignal(self, ma, movingStdDev, close):
-        return close < ma - self.__calibratedStdMultiplier * movingStdDev
-
-    def isMeanReversionRegimeEnterShortSignal(self, ma, movingStdDev, close):
-        return close > ma - self.__calibratedStdMultiplier * movingStdDev
-
-    def isMeanReversionRegimeExitLongSignal(self):
-        return cross.cross_above(self.__adjClosePrices, self.__exitSMA) and not self.__longPos.exitActive()
-
-    def isMeanReversionRegimeExitShortSignal(self):
-        return cross.cross_below(self.__adjClosePrices, self.__exitSMA) and not self.__shortPos.exitActive()
 
     def onBars(self, bars):
         self.__movingStatHelper.update()
         if bars.getBar(self.__instrument):
             hurst = self.getHurstValue()
+
             movingStdDev = self.__movingStatHelper.getMovingStdDev()
             ma = self.__movingStatHelper.getSma()
+
+            if hurst is None or movingStdDev is None or ma is None:
+                return
+
             bar = bars[self.__instrument]
-            close = bar.getAdjClose()
+
             if hurst is not None:
-                if hurst < 0.5 and self.__exitSMA[-1] is not None:
-                    if self.__longPos is not None:
-                        if self.isMeanReversionRegimeExitLongSignal():
-                            self.__longPos.exitMarket()
-                    elif self.__shortPos is not None:
-                        if self.isMeanReversionRegimeExitShortSignal():
-                            self.__shortPos.exitMarket()
+                if hurst < 0.5:
+                    self.meanRevAlgo(bar, ma, movingStdDev)
+                elif hurst > 0.5:
+                    self.momentumAlgo(bar)
 
 
-                    if self.isMeanReversionRegimeEnterLongSignal(ma, movingStdDev, close):
-                        cash = self.getBroker().getCash() * 0.9
-                        price = bars[self.__instrument].getAdjClose()
-                        size = int(cash / price)
-                        if size > 0:
-                            self.__longPos = self.enterLong(self.__instrument, size, True)
+    def momentumAlgo(self, bar):
+        # Bollinger band based implementation
+        if self.__bollingerBands.getLowerBand() is None or self.__bollingerBands.getUpperBand() is None:
+            return
 
-                    elif self.isMeanReversionRegimeEnterShortSignal(ma, movingStdDev, close) and self.__shortPos is None:
-                        cash = self.getBroker().getCash() * 0.9
-                        price = bars[self.__instrument].getAdjClose()
-                        size = int(cash / price)
-                        if size > 0:
-                            self.__shortPos = self.enterShort(self.__instrument, size, True)
+        if self.isMomentumRegimeBuySignal(bar):
+            size = int(self.getBroker().getCash() * 0.9 / bar.getPrice())
+            if size > 0:
+                self.marketOrder(self.__instrument, size)
+                self.info("Placing buy market order for %s shares at price %s" % (size, bar.getPrice()))
+        if self.isMomentumRegimeSellSignal(bar):
+            currentPosition = self.getBroker().getShares(self.__instrument)
+            if currentPosition > 0:
+                self.marketOrder(self.__instrument, currentPosition * -1)
+                self.info("Placing sell market order for %s shares at price %s" % (currentPosition, bar.getPrice()))
 
-                if hurst > 0.5 and self.__exitSMA[-1] is not None and self.__entrySMA[-1] is not None and self.__rsi[
-                    -1] is not None:
-                    if self.__longPos is not None:
-                        if self.isMomentumRegimeExitLongSignal():
-                            self.__longPos.exitMarket()
-                    elif self.__shortPos is not None:
-                        if self.isMomentumRegimeExitShortSignal():
-                            self.__shortPos.exitMarket()
-                    else:
-                        if self.isMomentumRegimeEnterLongSignal(bar):
-                            cash = self.getBroker().getCash() * 0.9
-                            price = bars[self.__instrument].getAdjClose()
-                            size = int(cash / price)
-                            if size > 0:
-                                self.__longPos = self.enterLong(self.__instrument, size, True)
-                        elif self.isMomentumRegimeEnterShortSignal(bar) and self.__shortPos is None:
-                            cash = self.getBroker().getCash() * 0.9
-                            price = bars[self.__instrument].getAdjClose()
-                            size = int(cash / price)
-                            if size > 0:
-                                self.__shortPos = self.enterShort(self.__instrument, size, True)
+    def isMomentumRegimeBuySignal(self, bar):
+        return bar.getPrice() < self.__bollingerBands.getLowerBand()[-1]
+
+    def isMomentumRegimeSellSignal(self, bar):
+        return bar.getPrice() > self.__bollingerBands.getUpperBand()[-1]
+
+    def meanRevAlgo(self, bar, ma, movingStdDev):
+        # Half-life of mean reversion implementation
+        if movingStdDev is None or ma is None:
+            return
+
+        if self.isMeanReversionRegimeBuySignal(ma, movingStdDev, bar):
+            size = int(self.getBroker().getCash() * 0.9 / bar.getPrice())
+            if size > 0:
+                self.marketOrder(self.__instrument, size)
+                self.info("Placing buy market order for %s shares at price %s" % (size, bar.getPrice()))
+
+        elif self.isMeanReversionRegimeSellSignal(ma, movingStdDev, bar):
+            currentPosition = self.getBroker().getShares(self.__instrument)
+            if currentPosition > 0:
+                self.marketOrder(self.__instrument, currentPosition * -1)
+                self.info("Placing sell market order for %s shares at price %s" % (currentPosition, bar.getPrice()))
+
+    def isMeanReversionRegimeBuySignal(self, ma, movingStdDev, bar):
+        return bar.getPrice() < ma - self.__calibratedStdMultiplier * movingStdDev
+
+    def isMeanReversionRegimeSellSignal(self, ma, movingStdDev, bar):
+        return bar.getPrice() > ma - self.__calibratedStdMultiplier * movingStdDev
