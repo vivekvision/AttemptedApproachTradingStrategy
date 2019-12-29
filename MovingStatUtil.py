@@ -50,5 +50,5 @@ class MovingStatHelper:
     def getMovingStdDev(self):
         return self.__movingStdValue
 
-    def getSma(self):
+    def getHalflifeBasedMa(self):
         return self.__movingAvgValue

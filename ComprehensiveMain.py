@@ -32,8 +32,8 @@ def main(plot):
     #instrument = "n225"
     #feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\n225.csv")
 
-    instrument = "hsi"
-    feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\hsi.csv")
+    #instrument = "hsi"
+    #feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\hsi.csv")
 
     # instrument = "hsce"
     # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\hsce.csv")
@@ -44,8 +44,8 @@ def main(plot):
     # instrument = "asx"
     # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\asx.csv")
 
-    # instrument = "kospi"
-    # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\kospi.csv")
+    instrument = "kospi"
+    feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\kospi.csv")
 
     # instrument = "nifty"
     # feed.addBarsFromCSV(instrument, r".\OtherStrategy\Data\nifty.csv")
@@ -59,35 +59,38 @@ def main(plot):
     bollingerBandsPeriod = 30
     bollingerBandsNoOfStd = 2
 
-    strat = StrategyUtil.ComprehensiveStrategy(feed, instrument, hurstPeriod, stdMultiplier, bollingerBandsPeriod, bollingerBandsNoOfStd)
+    slowSmaPeriod = 40
+    fastSmaPeriod = 6
+
+    strategy = StrategyUtil.ComprehensiveStrategy(feed, instrument, hurstPeriod, stdMultiplier, bollingerBandsPeriod, bollingerBandsNoOfStd,slowSmaPeriod, fastSmaPeriod)
 
     # Attach a Sharpe Ratio analyser
     sharpeRatioAnalyzer = sharpe.SharpeRatio()
-    strat.attachAnalyzer(sharpeRatioAnalyzer)
+    strategy.attachAnalyzer(sharpeRatioAnalyzer)
 
     # Attach a Drawdown analyzer
     drawdownAnalyzer = drawdown.DrawDown()
-    strat.attachAnalyzer(drawdownAnalyzer)
+    strategy.attachAnalyzer(drawdownAnalyzer)
 
     # Attach a return analyzer
     returnsAnalyzer = returns.Returns()
-    strat.attachAnalyzer(returnsAnalyzer)
+    strategy.attachAnalyzer(returnsAnalyzer)
 
     # Attach trade analyzer
     tradesAnalyzer = trades.Trades()
-    strat.attachAnalyzer(tradesAnalyzer)
+    strategy.attachAnalyzer(tradesAnalyzer)
 
     if plot:
-        plt = plotter.StrategyPlotter(strat, True, False, True)
+        plt = plotter.StrategyPlotter(strategy, True, False, True)
 
-        plt.getOrCreateSubplot("hurst").addDataSeries("Hurst", strat.getHurst())
+        plt.getOrCreateSubplot("hurst").addDataSeries("Hurst", strategy.getHurst())
         plt.getOrCreateSubplot("hurst").addLine("Random", 0.5)
 
         # Plot the simple returns on each bar.
         plt.getOrCreateSubplot("returns").addDataSeries("Simple returns", returnsAnalyzer.getReturns())
 
-    strat.run()
-    strat.info("Final portfolio value: $%.2f" % strat.getResult())
+    strategy.run()
+    strategy.info("Final portfolio value: $%.2f" % strategy.getResult())
     print("Sharpe ratio: %.2f" % sharpeRatioAnalyzer.getSharpeRatio(0.05))
     print("Maximum Drawdown : %.2f" % drawdownAnalyzer.getMaxDrawDown())
     print("Longest Drawdown Duration : %s" % drawdownAnalyzer.getLongestDrawDownDuration())

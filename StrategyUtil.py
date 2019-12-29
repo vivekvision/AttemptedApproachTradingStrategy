@@ -25,7 +25,7 @@ import MovingStatUtil
 
 
 class ComprehensiveStrategy(strategy.BacktestingStrategy):
-    def __init__(self, feed, instrument, hurstPeriod, stdMultiplier, bollingerBandsPeriod, bollingerBandsNoOfStd):
+    def __init__(self, feed, instrument, hurstPeriod, stdMultiplier, bollingerBandsPeriod, bollingerBandsNoOfStd, slowSmaPeriod, fastSmaPeriod):
         strategy.BacktestingStrategy.__init__(self, feed)
         self.__instrument = instrument
         self.__hurstPeriod = hurstPeriod
@@ -34,14 +34,18 @@ class ComprehensiveStrategy(strategy.BacktestingStrategy):
         # Use adjusted close values, if available, instead of regular close values.
         if feed.barsHaveAdjClose():
             self.setUseAdjustedValues(True)
+        self.__adjClosePrices = feed[instrument].getAdjCloseDataSeries()
         self.__priceDS = feed[instrument].getPriceDataSeries()
-        self.__hurst = hurst.HurstExponent(self.__priceDS, hurstPeriod)
-        self.__movingStatHelper = MovingStatUtil.MovingStatHelper(self.__priceDS, hurstPeriod)
+        self.__hurst = hurst.HurstExponent(self.__adjClosePrices, hurstPeriod)
+        self.__movingStatHelper = MovingStatUtil.MovingStatHelper(self.__adjClosePrices, hurstPeriod)
 
         self.__bollingerBandsPeriod = bollingerBandsPeriod
         self.__bollingerBandsNoOfStd = bollingerBandsNoOfStd
-        self.__bollingerBands = bollinger.BollingerBands(self.__priceDS,
+        self.__bollingerBands = bollinger.BollingerBands(self.__adjClosePrices,
                                                          self.__bollingerBandsPeriod, self.__bollingerBandsNoOfStd)
+
+        self.__slowSma = ma.SMA(self.__priceDS, slowSmaPeriod)
+        self.__fastSma = ma.SMA(self.__priceDS, fastSmaPeriod)
 
         self.__position = None
 
@@ -75,23 +79,23 @@ class ComprehensiveStrategy(strategy.BacktestingStrategy):
             hurst = self.getHurstValue()
 
             movingStdDev = self.__movingStatHelper.getMovingStdDev()
-            ma = self.__movingStatHelper.getSma()
+            halfLifeBasedMa = self.__movingStatHelper.getHalflifeBasedMa()
 
-            if hurst is None or movingStdDev is None or ma is None:
+            if hurst is None or movingStdDev is None or halfLifeBasedMa is None or self.__slowSma[-1] is None or self.__fastSma[-1] is None:
                 return
 
             bar = bars[self.__instrument]
 
             if hurst is not None:
                 if hurst < 0.5:
-                    self.meanRevAlgo(bar, ma, movingStdDev)
+                    self.meanRevAlgo(bar, halfLifeBasedMa, movingStdDev)
                 elif hurst > 0.5:
                     self.momentumAlgo(bar)
 
 
     def momentumAlgo(self, bar):
         # Bollinger band based implementation
-        if self.__bollingerBands.getLowerBand() is None or self.__bollingerBands.getUpperBand() is None:
+        if self.__bollingerBands.getLowerBand() is None or self.__bollingerBands.getUpperBand() is None or self.__slowSma[-1] is None or self.__fastSma[-1] is None:
             return
 
         if self.isMomentumRegimeBuySignal(bar):
@@ -105,31 +109,37 @@ class ComprehensiveStrategy(strategy.BacktestingStrategy):
                 self.marketOrder(self.__instrument, currentPosition * -1)
                 self.info("Placing sell market order for %s shares at price %s" % (currentPosition, bar.getPrice()))
 
+
     def isMomentumRegimeBuySignal(self, bar):
-        return bar.getPrice() < self.__bollingerBands.getLowerBand()[-1]
+        return bar.getPrice() < self.__bollingerBands.getLowerBand()[-1] and cross.cross_above(self.__fastSma, self.__slowSma) > 0
+
 
     def isMomentumRegimeSellSignal(self, bar):
-        return bar.getPrice() > self.__bollingerBands.getUpperBand()[-1]
+        return bar.getPrice() > self.__bollingerBands.getUpperBand()[-1] and cross.cross_below(self.__fastSma, self.__slowSma) > 0
 
-    def meanRevAlgo(self, bar, ma, movingStdDev):
+
+    def meanRevAlgo(self, bar, halfLifeBasedMa, movingStdDev):
         # Half-life of mean reversion implementation
-        if movingStdDev is None or ma is None:
+        if movingStdDev is None or halfLifeBasedMa is None:
             return
 
-        if self.isMeanReversionRegimeBuySignal(ma, movingStdDev, bar):
+        if self.isMeanReversionRegimeBuySignal(halfLifeBasedMa, movingStdDev, bar):
             size = int(self.getBroker().getCash() * 0.9 / bar.getPrice())
             if size > 0:
                 self.marketOrder(self.__instrument, size)
                 self.info("Placing buy market order for %s shares at price %s" % (size, bar.getPrice()))
 
-        elif self.isMeanReversionRegimeSellSignal(ma, movingStdDev, bar):
+        elif self.isMeanReversionRegimeSellSignal(halfLifeBasedMa, movingStdDev, bar):
             currentPosition = self.getBroker().getShares(self.__instrument)
             if currentPosition > 0:
                 self.marketOrder(self.__instrument, currentPosition * -1)
                 self.info("Placing sell market order for %s shares at price %s" % (currentPosition, bar.getPrice()))
 
-    def isMeanReversionRegimeBuySignal(self, ma, movingStdDev, bar):
-        return bar.getPrice() < ma - self.__calibratedStdMultiplier * movingStdDev
 
-    def isMeanReversionRegimeSellSignal(self, ma, movingStdDev, bar):
-        return bar.getPrice() > ma - self.__calibratedStdMultiplier * movingStdDev
+    def isMeanReversionRegimeBuySignal(self, halfLifeBasedMa, movingStdDev, bar):
+        return bar.getPrice() < halfLifeBasedMa - self.__calibratedStdMultiplier * movingStdDev
+
+
+    def isMeanReversionRegimeSellSignal(self, halfLifeBasedMa, movingStdDev, bar):
+        return bar.getPrice() > halfLifeBasedMa - self.__calibratedStdMultiplier * movingStdDev
+
