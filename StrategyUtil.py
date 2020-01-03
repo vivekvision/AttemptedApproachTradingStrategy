@@ -1,16 +1,4 @@
 from pyalgotrade import strategy
-from pyalgotrade.technical import hurst
-from pyalgotrade.barfeed import quandlfeed
-from pyalgotrade import plotter
-from pyalgotrade.stratanalyzer import sharpe
-from pyalgotrade.stratanalyzer import returns
-from pyalgotrade.barfeed import yahoofeed
-from pyalgotrade import dataseries
-from pyalgotrade.dataseries import aligned
-
-from pyalgotrade import eventprofiler
-from pyalgotrade.technical import stats
-from pyalgotrade.technical import roc
 
 from pyalgotrade.technical import ma
 from pyalgotrade.technical import cross
@@ -22,7 +10,7 @@ from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
 import MovingStatUtil
-
+import MovingHurst
 
 class ComprehensiveStrategy(strategy.BacktestingStrategy):
     def __init__(self, feed, instrument, hurstPeriod, stdMultiplier, bollingerBandsPeriod, bollingerBandsNoOfStd, slowSmaPeriod, fastSmaPeriod):
@@ -36,7 +24,7 @@ class ComprehensiveStrategy(strategy.BacktestingStrategy):
             self.setUseAdjustedValues(True)
         self.__adjClosePrices = feed[instrument].getAdjCloseDataSeries()
         self.__priceDS = feed[instrument].getPriceDataSeries()
-        self.__hurst = hurst.HurstExponent(self.__adjClosePrices, hurstPeriod)
+        self.__hurst = MovingHurst.HurstExponent(self.__adjClosePrices, hurstPeriod)
         self.__movingStatHelper = MovingStatUtil.MovingStatHelper(self.__adjClosePrices, hurstPeriod)
 
         self.__bollingerBandsPeriod = bollingerBandsPeriod

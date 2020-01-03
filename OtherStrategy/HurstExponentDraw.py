@@ -1,26 +1,12 @@
 from pyalgotrade import strategy
-from pyalgotrade.technical import hurst
-from pyalgotrade.barfeed import quandlfeed
 from pyalgotrade import plotter
 
-from pyalgotrade.stratanalyzer import sharpe
-from pyalgotrade.stratanalyzer import returns
-from pyalgotrade.stratanalyzer import drawdown
-from pyalgotrade.stratanalyzer import trades
-
 from pyalgotrade.barfeed import yahoofeed
-from pyalgotrade import dataseries
-from pyalgotrade.dataseries import aligned
-from pyalgotrade import eventprofiler
-from pyalgotrade.technical import stats
-from pyalgotrade.technical import roc
-from pyalgotrade.technical import ma
-from pyalgotrade.technical import cross
 
-import numpy as np
-from scipy.ndimage.interpolation import shift
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
+
+import MovingHurst
 
 
 class HurstStrategy(strategy.BacktestingStrategy):
@@ -31,7 +17,7 @@ class HurstStrategy(strategy.BacktestingStrategy):
         # Use adjusted close values instead of regular close values.
         self.setUseAdjustedValues(True)
         self.__adjClosePrices = feed[instrument].getAdjCloseDataSeries()
-        self.__hurst = hurst.HurstExponent(self.__adjClosePrices, self.__hurstPeriod)
+        self.__hurst = MovingHurst.HurstExponent(self.__adjClosePrices, self.__hurstPeriod)
 
     def getHurst(self):
         return self.__hurst
