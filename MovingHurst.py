@@ -32,8 +32,6 @@ class HurstExponent(technical.EventBasedFilter):
     :param maxLags: The maximum number of lags to use. Must be > minLags
     :type maxLags: int
     :param maxLen: The maximum number of values to hold
-        Once a bounded length is full, when new items are added, a corresponding number of items are discarded
-        from the opposite end. If None then dataseries.DEFAULT_MAX_LEN is used
     :type maxLen: int
     """
 
